@@ -1,0 +1,7 @@
+DECLARE str:STRING
+str <- "abc"
+CASE OF str
+    "ab": OUTPUT 1
+    OTHERWISE: OUTPUT 2
+ENDCASE
+OUTPUT str

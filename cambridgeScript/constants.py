@@ -77,6 +77,8 @@ class Symbol(StrEnum):
     MUL = "*"
     DIV = "/"
     POW = "^"
+    DDIV = "DIV"
+    MOD = "MOD"
 
 
 def _unary_sub(n):
@@ -98,3 +100,5 @@ class Operator:
     UNARY_SUB = _unary_sub
     MUL = operator.mul
     DIV = operator.truediv
+    DDIV = operator.floordiv
+    MOD = operator.mod

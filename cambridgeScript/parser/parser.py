@@ -542,10 +542,9 @@ class Parser:
         return self._binary_op(
             self._factor, {Symbol.ADD: Operator.ADD, Symbol.SUB: Operator.SUB}
         )
-
     def _factor(self) -> Expression:
         return self._binary_op(
-            self._call, {Symbol.MUL: Operator.MUL, Symbol.DIV: Operator.DIV}
+            self._call, {Symbol.MUL: Operator.MUL, Symbol.DIV: Operator.DIV, Symbol.DDIV:Operator.DDIV, Symbol.MOD:Operator.MOD}
         )
 
     def _call(self) -> Expression:

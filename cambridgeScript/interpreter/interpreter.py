@@ -30,11 +30,13 @@ from cambridgeScript.syntax_tree import (
     Program,
 )
 from cambridgeScript.syntax_tree.visitors import ExpressionVisitor, StatementVisitor
-
+import random
 
 class InterpreterError(Exception):
     pass
 
+
+        
 
 class InvalidNode(InterpreterError):
     node: Statement | Expression
@@ -68,9 +70,122 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         operand = self.visit(expr.operand)
         return expr.operator(operand)
 
-    def visit_function_call(self, expr: FunctionCall) -> Value:
-        raise NotImplemented
+    def visit_function_call(self, func_call):
+        # Retrieve the function name
+        function_name = func_call.function.token.value
 
+        if function_name == "SUBSTRING":
+            # Expecting three parameters: string, start index, length
+            if len(func_call.params) != 3:
+                raise ValueError("SUBSTRING function requires exactly three parameters.")
+            
+            # Evaluate the parameters
+            string_value = self.visit(func_call.params[0])
+            start_index = self.visit(func_call.params[1])
+            length = self.visit(func_call.params[2])
+            
+            # Check if parameters are of expected types
+            if not isinstance(string_value, str) or not isinstance(start_index, int) or not isinstance(length, int):
+                raise TypeError("Invalid parameter types for SUBSTRING function.")
+            
+            # Perform the substring operation
+            result = string_value[start_index:start_index + length]
+            return result
+
+        elif function_name == "RANDOM":
+            # Expecting zero parameters
+            if len(func_call.params) != 0:
+                raise ValueError("RANDOM function does not take any parameters.")
+            
+            # Generate a random real number between 0 and 1
+            return random.random()
+        
+        elif function_name == "MOD":
+            # Expecting two parameters: a and b
+            if len(func_call.params) != 2:
+                raise ValueError("MOD function requires exactly two parameters.")
+            
+            a = self.visit(func_call.params[0])
+            b = self.visit(func_call.params[1])
+            
+            # Perform modulo operation
+            if not isinstance(a, int) or not isinstance(b, int):
+                raise TypeError("MOD function requires integer parameters.")
+            
+            return a % b
+
+        elif function_name == "DIV":
+            # Expecting two parameters: a and b
+            if len(func_call.params) != 2:
+                raise ValueError("DIV function requires exactly two parameters.")
+            
+            a = self.visit(func_call.params[0])
+            b = self.visit(func_call.params[1])
+            
+            # Perform floor division
+            if not isinstance(a, int) or not isinstance(b, int):
+                raise TypeError("DIV function requires integer parameters.")
+            
+            return a // b
+
+        elif function_name == "ROUND":
+            # Expecting two parameters: a (number), b (decimal points)
+            if len(func_call.params) != 2:
+                raise ValueError("ROUND function requires exactly two parameters.")
+            
+            a = self.visit(func_call.params[0])
+            b = self.visit(func_call.params[1])
+            
+            # Perform rounding
+            if not (isinstance(a, float) or isinstance(a, int)) or not isinstance(b, int):
+                raise TypeError("ROUND function requires a number and an integer.")
+            
+            return round(a, b)
+        
+        elif function_name == "LENGTH":
+            # Expecting one parameter: a (string)
+            if len(func_call.params) != 1:
+                raise ValueError("LENGTH function requires exactly one parameter.")
+            
+            a = self.visit(func_call.params[0])
+            
+            # Check type and get the length
+            if not isinstance(a, str):
+                raise TypeError("LENGTH function requires a string parameter.")
+            
+            return len(a)
+
+        elif function_name == "LCASE":
+            # Expecting one parameter: a (string)
+            if len(func_call.params) != 1:
+                raise ValueError("LCASE function requires exactly one parameter.")
+            
+            a = self.visit(func_call.params[0])
+            
+            # Convert to lowercase
+            if not isinstance(a, str):
+                raise TypeError("LCASE function requires a string parameter.")
+            
+            return a.lower()
+        
+        elif function_name == "UCASE":
+            # Expecting one parameter: a (string)
+            if len(func_call.params) != 1:
+                raise ValueError("UCASE function requires exactly one parameter.")
+            
+            a = self.visit(func_call.params[0])
+            
+            # Convert to uppercase
+            if not isinstance(a, str):
+                raise TypeError("UCASE function requires a string parameter.")
+            
+            return a.upper()
+
+        else:
+            # Raise an error for unimplemented functions
+            raise NotImplementedError(f"Function '{function_name}' is not implemented.")
+
+            
     def visit_array_index(self, expr: ArrayIndex) -> Value:
         raise NotImplemented
 
@@ -102,7 +217,12 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
             self.visit_statements(stmt.else_branch)
 
     def visit_case(self, stmt: CaseStmt) -> None:
-        pass
+        expr = self.visit(stmt.expr)
+        for i in stmt.cases:
+            if i[0].value == expr:
+                self.visit(i[1])
+                return 0
+            self.visit(stmt.otherwise)
 
     def visit_for_loop(self, stmt: ForStmt) -> None:
         if isinstance(stmt, ArrayIndex):

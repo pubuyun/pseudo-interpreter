@@ -96,11 +96,14 @@ _TOKENS = [
     ("NEWLINE", r"\n"),
     ("KEYWORD", "|".join(Keyword)),
     ("LITERAL", r'-?[0-9]+(?:\.[0-9]+)?|".*?"'),
-    ("SYMBOL", "|".join("\\" + s for s in Symbol)),
-    ("IDENTIFIER", r"[A-Za-z]+"),
+    ("SYMBOL", "|".join(re.escape(s) for s in Symbol)), 
+    ("IDENTIFIER", r"[A-Za-z][A-Za-z0-9]*"),
     ("INVALID", r"."),
     ("EOF", r"$"),
 ]
+
+
+
 _TOKEN_REGEX = "|".join(f"(?P<{name}>{regex})" for name, regex in _TOKENS)
 
 
@@ -139,7 +142,7 @@ def parse_tokens(code: str) -> list[Token]:
     :rtype: list[Token]
     """
     res: list[Token] = []
-    line_number: int = 0
+    line_number: int = 1
     line_start: int = 0
     for match in re.finditer(_TOKEN_REGEX, code, re.M):
         token_type = match.lastgroup
