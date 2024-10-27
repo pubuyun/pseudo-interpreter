@@ -47,6 +47,7 @@ from cambridgeScript.syntax_tree import (
 from cambridgeScript.parser.lexer import (
     Token,
     TokenComparable,
+    SymbolToken,
     LiteralToken,
     KeywordToken,
     IdentifierToken,
@@ -152,7 +153,16 @@ class Parser:
     def _peek(self) -> Token:
         # Returns the next token without consuming
         return self.tokens[self._next_index]
-
+    
+    def _peek_ahead(self, offset: int = 1) -> Token:
+        """
+        Peek ahead by a given offset from the current token.
+        Default is 1 (next token), but you can increase it to look further.
+        """
+        target_index = self._next_index + offset
+        if target_index < len(self.tokens):
+            return self.tokens[target_index]
+        return EOF  # Return EOF if out of bounds
     def _is_at_end(self) -> bool:
         # Returns whether the pointer is at the end
         return self._peek() == EOF
@@ -379,9 +389,10 @@ class Parser:
         while True:
             case = self._advance()
             self._consume(Symbol.COLON)
-            if case == Keyword.OTHERWISE:
-                pass
-            body = self._statement()
+            body = []
+            while isinstance(self._peek_ahead(2), SymbolToken) and self._peek_ahead(2).symbol == Symbol.COLON:
+                body = self._statement()
+                print(self._peek_ahead())
             if case == Keyword.OTHERWISE:
                 otherwise = body
                 self._consume(Keyword.ENDCASE)

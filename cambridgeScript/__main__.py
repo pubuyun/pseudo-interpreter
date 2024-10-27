@@ -1,24 +1,3 @@
-# import click
-#
-# from .interpreter.programs import Program
-#
-#
-# @click.group(invoke_without_command=True)
-# @click.pass_context
-# def cli(ctx: click.Context):
-#     if ctx.invoked_subcommand:
-#         return
-#
-#     click.echo("REPL is under construction")
-#
-#
-# @cli.command()
-# @click.argument("file", type=click.File())
-# def run(file):
-#     code = file.read()
-#     code += "\n"
-#     program = Program.from_code(code)
-#     program.execute()
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -29,7 +8,7 @@ if __name__ == "__main__":
     from interpreter.variables import VariableState
     from interpreter.interpreter import Interpreter
 
-    tokens = parse_tokens(open("pseudo-interpreter/cambridgeScript/input.txt", 'r').read())
+    tokens = parse_tokens(open("cambridgeScript/input.txt", 'r').read())
     for token in tokens:
         print(token)
     parsed = Parser.parse_program(tokens)

@@ -180,7 +180,7 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
                 raise TypeError("UCASE function requires a string parameter.")
             
             return a.upper()
-
+        
         else:
             # Raise an error for unimplemented functions
             raise NotImplementedError(f"Function '{function_name}' is not implemented.")
