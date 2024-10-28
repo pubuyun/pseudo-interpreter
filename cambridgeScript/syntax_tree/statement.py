@@ -74,7 +74,7 @@ class IfStmt(Statement):
 @dataclass
 class CaseStmt(Statement):
     expr: Expression
-    cases: list[tuple[IdentifierToken | LiteralToken, Statement]]
+    cases: list[tuple[IdentifierToken | LiteralToken, list[Statement]]]
     otherwise: Statement | None
 
     def accept(self, visitor: "StatementVisitor") -> Any:
@@ -114,7 +114,7 @@ class WhileStmt(Statement):
 @dataclass
 class VariableDecl(Statement):
     name: IdentifierToken
-    type: "Type"
+    vartype: Type
 
     def accept(self, visitor: "StatementVisitor") -> Any:
         return visitor.visit_variable_decl(self)

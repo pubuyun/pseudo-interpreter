@@ -1,9 +1,3 @@
-DECLARE str:STRING
-str <- "abc"
-CASE OF str
-    "ab": OUTPUT 1
-    OUTPUT 2
-    "bc": OUTPUT 2
-    OTHERWISE: OUTPUT 2
-ENDCASE
-OUTPUT str
+DECLARE integ:INTEGER
+INPUT integ
+OUTPUT integ

@@ -390,13 +390,12 @@ class Parser:
             case = self._advance()
             self._consume(Symbol.COLON)
             body = []
-            while isinstance(self._peek_ahead(2), SymbolToken) and self._peek_ahead(2).symbol == Symbol.COLON:
-                body = self._statement()
-                print(self._peek_ahead())
             if case == Keyword.OTHERWISE:
-                otherwise = body
-                self._consume(Keyword.ENDCASE)
+                otherwise = self._statements_until(Keyword.ENDCASE)
                 break
+            body.append(self._statement())
+            while not (isinstance(self._peek_ahead(), SymbolToken) and self._peek_ahead().symbol == Symbol.COLON):
+                body.append(self._statement())
             if not isinstance(case, (IdentifierToken, LiteralToken)):
                 raise ParserError("Invalid case for case statement")
             cases.append(case)

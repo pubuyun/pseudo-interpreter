@@ -1,0 +1,50 @@
+2024-10-28 11:14:40.304 +08:00 [WRN] Code action yay
+2024-10-28 11:14:40.588 +08:00 [WRN] hi
+2024-10-28 11:14:40.589 +08:00 [WRN] Sync Handler
+2024-10-28 11:14:40.592 +08:00 [WRN] hi
+2024-10-28 11:14:40.592 +08:00 [WRN] hi references
+2024-10-28 11:14:40.593 +08:00 [WRN] hi document highlight
+2024-10-28 11:14:40.594 +08:00 [WRN] hi document symbol
+2024-10-28 11:14:41.123 +08:00 [ERR] file:///d:/pseudointerpreter/pseudo-interpreter/1.p not found
+2024-10-28 11:14:41.331 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:41.676 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:43.340 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:43.711 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:44.227 +08:00 [WRN] Complete complete
+2024-10-28 11:14:45.162 +08:00 [WRN] Complete complete
+2024-10-28 11:14:45.954 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:46.233 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:47.591 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:47.974 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:48.410 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:49.330 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:50.111 +08:00 [WRN] Complete complete
+2024-10-28 11:14:50.502 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:51.002 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:52.525 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:53.430 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:53.530 +08:00 [WRN] Complete complete
+2024-10-28 11:14:54.334 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:55.466 +08:00 [WRN] Complete complete
+2024-10-28 11:14:56.219 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:57.678 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:58.313 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:58.729 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:59.029 +08:00 [WRN] Codeactioning
+2024-10-28 11:14:59.665 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:00.459 +08:00 [WRN] Complete complete
+2024-10-28 11:15:00.771 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:01.678 +08:00 [WRN] Complete complete
+2024-10-28 11:15:02.478 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:02.811 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:03.165 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:03.949 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:05.389 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:05.907 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:06.541 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:07.203 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:07.509 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:08.017 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:08.968 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:10.073 +08:00 [WRN] Codeactioning
+2024-10-28 11:15:11.009 +08:00 [WRN] Codeactioning

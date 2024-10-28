@@ -1,5 +1,8 @@
 from cambridgeScript.interpreter.variables import VariableState
 from cambridgeScript.parser.lexer import LiteralToken, Value
+from cambridgeScript.syntax_tree.expression import Expression, Assignable
+from cambridgeScript.syntax_tree.types import Type, PrimitiveType, ArrayType
+
 from cambridgeScript.syntax_tree import (
     Expression,
     Identifier,
@@ -198,7 +201,7 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         name = expr.token.value
         if name not in self.variable_state.variables:
             raise InterpreterError(f"Name {name} isn't defined")
-        value = self.variable_state.variables[name]
+        value = self.variable_state.variables[name][0]
         if value is None:
             raise InterpreterError(f"Name {name} has no value")
         return value
@@ -220,9 +223,9 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         expr = self.visit(stmt.expr)
         for i in stmt.cases:
             if i[0].value == expr:
-                self.visit(i[1])
+                self.visit_statements(i[1])
                 return 0
-            self.visit(stmt.otherwise)
+        self.visit_statements(stmt.otherwise) 
 
     def visit_for_loop(self, stmt: ForStmt) -> None:
         if isinstance(stmt, ArrayIndex):
@@ -240,20 +243,46 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
             current_value += step_value
 
     def visit_repeat_until(self, stmt: RepeatUntilStmt) -> None:
-        pass
+        self.visit_statements(stmt.body)
+        expr = self.visit(stmt.condition)
+        while not expr:
+            self.visit_statements(stmt.body)
+            expr = self.visit(stmt.condition)
 
     def visit_while(self, stmt: WhileStmt) -> None:
-        pass
+        expr = self.visit(stmt.condition)
+        while expr:
+            self.visit_statements(stmt.body)
+            expr = self.visit(stmt.condition)
 
     def visit_variable_decl(self, stmt: VariableDecl) -> None:
-        self.variable_state.variables[stmt.name.value] = None
-
+        print(stmt.name.value)
+        self.variable_state.variables[stmt.name.value] = (None, stmt.vartype)
     def visit_constant_decl(self, stmt: ConstantDecl) -> None:
-        pass
-
+        self.variable_state.constants[stmt.name.value] = stmt.value
     def visit_input(self, stmt: InputStmt) -> None:
-        pass
-
+        if isinstance(stmt.variable, ArrayIndex):
+            raise NotImplemented
+        name = stmt.variable.token.value
+        if name not in self.variable_state.variables:
+            raise InterpreterError(f"{name} was not declared")
+        if name in self.variable_state.constants:
+            raise Interpreter(f"{name} is a constant, which can't be input")
+        vartype = self.variable_state.variables[name][1]
+        print(Type)
+        if isinstance(vartype, PrimitiveType):
+            if vartype == PrimitiveType.INTEGER:
+                self.variable_state.variables[name][0] = int(input())
+            elif vartype == PrimitiveType.BOOLEAN:
+                self.variable_state.variables[name][0] = True if input().upper() == "TRUE" else False
+            elif vartype == PrimitiveType.CHAR:
+                self.variable_state.variables[name][0] = input()[0]
+            elif vartype == PrimitiveType.STRING:
+                self.variable_state.variables[name][0] = input()
+            elif vartype == PrimitiveType.REAL:
+                self.variable_state.variables[name][0] = float(input())
+        else:
+            raise NotImplementedError
     def visit_output(self, stmt: OutputStmt) -> None:
         values = []
         for expr in stmt.values:
@@ -284,7 +313,7 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         name = stmt.target.token.value
         if name not in self.variable_state.variables:
             raise InterpreterError(f"{name} was not declared")
-        self.variable_state.variables[name] = self.visit(stmt.value)
+        self.variable_state.variables[name] = ( self.visit(stmt.value), self.variable_state.variables[name][1])
 
     def visit_program(self, stmt: Program) -> None:
         self.visit_statements(stmt.statements)
