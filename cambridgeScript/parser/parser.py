@@ -47,10 +47,12 @@ from cambridgeScript.syntax_tree import (
 from cambridgeScript.parser.lexer import (
     Token,
     TokenComparable,
+    SymbolToken,
     LiteralToken,
     KeywordToken,
     IdentifierToken,
     Value,
+    EOFToken,
     EOF,
 )
 
@@ -59,7 +61,17 @@ T = TypeVar("T")
 
 class ParserError(Exception):
     """Base exception class for errors from the parser"""
-
+    def parse3(self, origin, line):
+        if line >= 2 and line <= len(origin) - 1:
+            return f"{line-1} {origin[line-2]}\n{line} {origin[line-1]}\n" + "^^" + "^"*len(origin[line-1]) + f"\n{line+1} {origin[line]}"
+        else:
+            return f"{line} {origin[line-1]}\n" + "^^" + "^"*len(origin[line-1])
+    def __init__(self, prompt, origin, line) -> None:
+        self.prompt = prompt
+        self.origin = origin
+        self.line = line
+    def __str__(self) -> str:
+        return (self.prompt + "\n" + self.parse3(self.origin, self.line))
 
 class _InvalidMatch(ParserError):
     # Raised when the first token of a match is invalid
@@ -73,14 +85,17 @@ class UnexpectedToken(ParserError):
     expected: TokenComparable
     actual: Token
 
-    def __init__(self, expected: TokenComparable, actual: Token):
+    def __init__(self, expected: TokenComparable, actual: Token, origin, line):
         self.expected = expected
         self.actual = actual
-
+        self.origin = origin
+        self.line = line
+        
     def __str__(self):
         return (
             f"Expected '{self.expected}' at {self.actual.location}, "
-            f"found '{self.actual}' instead"
+            f"found '{self.actual}' instead\n"
+            f"{self.parse3(self.origin, self.line)}"
         )
 
 
@@ -90,14 +105,17 @@ class UnexpectedTokenType(ParserError):
     expected_type: type[Token]
     actual: Token
 
-    def __init__(self, expected: type[Token], actual: Token):
+    def __init__(self, expected: type[Token], actual: Token, origin, line):
         self.expected_type = expected
         self.actual = actual
-
+        self.origin = origin
+        self.line = line
+        
     def __str__(self):
         return (
             f"Expected {self.expected_type.__name__.lower()} at {self.actual.location}, "
-            f"found '{self.actual}' instead"
+            f"found '{self.actual}' instead\n"
+            f"{self.parse3(self.origin, self.line)}"
         )
 
 
@@ -120,8 +138,9 @@ class Parser:
         result = instance._expression()
         if not instance._is_at_end():
             next_token = instance._peek()
-            raise ParserError(f"Extra token {next_token} found")
+            raise ParserError(f"Extra token {next_token} found", cls.origin, next_token.line)
         return result
+
 
     @classmethod
     def parse_statement(cls, tokens: list[Token]) -> Statement:
@@ -134,16 +153,17 @@ class Parser:
         result = instance._statement()
         if not instance._is_at_end():
             next_token = instance._peek()
-            raise ParserError(f"Extra token {next_token} found")
+            raise ParserError(f"Extra token {next_token} found", cls.origin, next_token.line)
         return result
 
     @classmethod
-    def parse_program(cls, tokens: list[Token]) -> Program:
+    def parse_program(cls, tokens: list[Token], origin) -> Program:
         """
         Parses a list of tokens as a program (series of statements)
         :param tokens: tokens to parse
         :return: list of Statemnets
         """
+        cls.origin = origin.splitlines()
         statements = cls(tokens)._statements_until(EOF)
         return Program(statements)
 
@@ -152,7 +172,13 @@ class Parser:
     def _peek(self) -> Token:
         # Returns the next token without consuming
         return self.tokens[self._next_index]
-
+    
+    def _peek_ahead(self, offset: int = 1) -> Token:
+        target_index = self._next_index + offset
+        if target_index < len(self.tokens):
+            return self.tokens[target_index]
+        return EOF  # Return EOF if out of bounds
+    
     def _is_at_end(self) -> bool:
         # Returns whether the pointer is at the end
         return self._peek() == EOF
@@ -179,20 +205,20 @@ class Parser:
     def _consume(self, target: TokenComparable) -> Token:
         # Attempt to match a token, and raise an error if it fails
         if not (res := self._match(target)):
-            raise UnexpectedToken(target, self._peek())
+            raise UnexpectedToken(target, self._peek(), self.origin, self._peek().line)
         return res
 
     def _consume_first(self, target: TokenComparable) -> Token:
         # Variant of _consume() that raises _InvalidMatch instead
         if not (res := self._match(target)):
-            raise _InvalidMatch
+            raise UnexpectedToken(target, self._peek(), self.origin, self._peek().line)
         return res
 
     def _consume_type(self, type_: type[Token]) -> Token:
         # Attempt to match a token type, throw error if fail
         next_token = self._peek()
         if not isinstance(next_token, type_):
-            raise UnexpectedTokenType(type_, next_token)
+            raise UnexpectedTokenType(type_, next_token, self.origin, next_token.line)
         return self._advance()
 
     # Helper rules
@@ -207,7 +233,7 @@ class Parser:
                     Keyword.BOOLEAN,
                 )
         ):
-            raise _InvalidMatch
+            raise _InvalidMatch(f"Expected primitive type, got {self._peek()}", self.origin, self._peek().line)
         assert isinstance(res, KeywordToken)
         type_ = PrimitiveType[res.keyword]
         return type_
@@ -227,7 +253,7 @@ class Parser:
         try:
             type_ = self._primitive_type()
         except _InvalidMatch:
-            raise ParserError("Expected primitive type for array")
+            raise ParserError("Expected primitive type for array", self.origin, self._peek().line)
         return ArrayType(type_, ranges)
 
     def _type(self) -> Type:
@@ -239,9 +265,11 @@ class Parser:
             return self._array_type()
         except _InvalidMatch:
             pass
-        raise _InvalidMatch
+        raise _InvalidMatch(f"Expected Type, got {self._peek()} instead", self.origin, self._peek().line)
 
     def _parameter(self) -> tuple[IdentifierToken, Type]:
+        if isinstance(self._peek(), SymbolToken) and self._peek().symbol == Symbol.RPAREN:
+            return None
         name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
         self._consume(Symbol.COLON)
         type_ = self._type()
@@ -252,6 +280,8 @@ class Parser:
     ) -> tuple[IdentifierToken, list[tuple[IdentifierToken, Type]] | None]:
         name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
         if self._match(Symbol.LPAREN):
+            if self._match(Symbol.RPAREN):
+                return name, None
             parameters = self._match_multiple(self._parameter)
             self._consume(Symbol.RPAREN)
         else:
@@ -271,7 +301,6 @@ class Parser:
             result = [getter()]
         except _InvalidMatch:
             return []
-        # Successive items
         while self._match(delimiter):
             result.append(getter())
         return result
@@ -379,15 +408,23 @@ class Parser:
         while True:
             case = self._advance()
             self._consume(Symbol.COLON)
+            body = []
             if case == Keyword.OTHERWISE:
-                pass
-            body = self._statement()
-            if case == Keyword.OTHERWISE:
-                otherwise = body
-                self._consume(Keyword.ENDCASE)
+                otherwise = self._statements_until(Keyword.ENDCASE)
                 break
+            # exp1 =  (isinstance(self._peek_ahead(), SymbolToken) and self._peek_ahead().symbol == Symbol.COLON)
+            # exp2 =  (isinstance(self._peek(), KeywordToken) and self._peek().keyword == Keyword.ENDCASE)
+            # print(exp1, exp2)
+            # print(self._peek(), self._peek_ahead())
+            while True:
+                index = self._next_index
+                try:
+                    body.append(self._statement())
+                except:
+                    self._next_index = index
+                    break
             if not isinstance(case, (IdentifierToken, LiteralToken)):
-                raise ParserError("Invalid case for case statement")
+                raise ParserError("Invalid case for case statement", self.origin, self._peek().line)
             cases.append(case)
             bodies.append(body)
             if self._match(Keyword.ENDCASE):
@@ -398,16 +435,29 @@ class Parser:
         self._consume_first(Keyword.FOR)
         identifier = self._assignable()
         self._consume(Symbol.ASSIGN)
-        start_value = self._expression()
+        start_value = self._expression() 
         self._consume(Keyword.TO)
-        end_value = self._expression()
+        end_value = self._expression()  
+
         if self._match(Keyword.STEP):
             step_value = self._expression()
         else:
             step_value = None
-        body = self._statements_until(Keyword.NEXT)
-        # TODO optional variable after NEXT
-        return ForStmt(identifier, start_value, end_value, step_value, body)
+
+        body = []
+        while not isinstance(self._peek_ahead(), EOFToken):
+            if self._check(Keyword.NEXT) and isinstance(self._peek_ahead(1), IdentifierToken) and self._peek_ahead(1).value == identifier.token.value:
+                self._advance() 
+                self._advance() 
+                return ForStmt(identifier, start_value, end_value, step_value, body)
+            else:
+                if not (isinstance(self._peek(), EOFToken) or self._check(Keyword.NEXT)):
+                    body.append(self._statement())
+                else:
+                    raise SyntaxError(f"End statement of for loop of identifier {identifier.token.value} not found. Check if there is a typo.")
+        raise SyntaxError(f"End statement of for loop of identifier {identifier.token.value} not found. Check if there is a typo.")
+        
+
 
     def _repeat_loop(self) -> RepeatUntilStmt:
         self._consume_first(Keyword.REPEAT)
@@ -424,10 +474,16 @@ class Parser:
 
     def _declare_variable(self) -> VariableDecl:
         self._consume_first(Keyword.DECLARE)
+        names = []
+        while isinstance(self._peek_ahead(), SymbolToken) and self._peek_ahead().symbol == Symbol.COMMA:    
+            name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
+            self._consume_type(SymbolToken)
+            names.append(name)
         name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
+        names.append(name)
         self._consume(Symbol.COLON)
         type_ = self._type()
-        return VariableDecl(name, type_)
+        return VariableDecl(names, type_)
 
     def _declare_constant(self) -> ConstantDecl:
         self._consume_first(Keyword.CONSTANT)
@@ -456,7 +512,7 @@ class Parser:
         file: LiteralToken = self._consume_type(LiteralToken)  # type: ignore
         self._consume(Keyword.FOR)
         if self._peek() not in [Keyword.READ, Keyword.WRITE]:
-            raise UnexpectedToken("File mode", self._peek())
+            raise UnexpectedToken("File mode", self._peek(), self.origin, self._peek().line)
         file_mode: KeywordToken = self._advance()  # type: ignore
         return FileOpenStmt(file, file_mode)
 
@@ -503,7 +559,7 @@ class Parser:
     def _assignable(self) -> Assignable:
         result = self._call()
         if not isinstance(result, (ArrayIndex, Identifier)):
-            raise ParserError("Expected identifier or array index")
+            raise ParserError(f"Expected identifier or array index, get {result}", self.origin, self._peek().line)
         return result
 
     def _logic_or(self) -> Expression:
@@ -540,12 +596,11 @@ class Parser:
 
     def _term(self) -> Expression:
         return self._binary_op(
-            self._factor, {Symbol.ADD: Operator.ADD, Symbol.SUB: Operator.SUB}
+            self._factor, {Symbol.ADD: Operator.ADD, Symbol.SUB: Operator.SUB, Symbol.STRADD: Operator.ADD}
         )
-
     def _factor(self) -> Expression:
         return self._binary_op(
-            self._call, {Symbol.MUL: Operator.MUL, Symbol.DIV: Operator.DIV}
+            self._call, {Symbol.MUL: Operator.MUL, Symbol.DIV: Operator.DIV, Symbol.DDIV:Operator.DDIV, Symbol.MOD:Operator.MOD}
         )
 
     def _call(self) -> Expression:
@@ -569,11 +624,16 @@ class Parser:
             self._consume(Symbol.RPAREN)
             return res
         next_token = self._peek()
+        if isinstance(next_token, SymbolToken) and next_token.symbol == Symbol.RPAREN:
+                raise _InvalidMatch("No parameter", self.origin, self._peek().line)
         if isinstance(next_token, LiteralToken):
             self._advance()
             return Literal(next_token)
         elif isinstance(next_token, IdentifierToken):
             self._advance()
             return Identifier(next_token)
+        elif isinstance(next_token, KeywordToken) and next_token.keyword in [Keyword.TRUE, Keyword.FALSE]:
+            self._advance()
+            return Literal(LiteralToken(line=next_token.line, column=next_token.column, value=(True if next_token.keyword == Keyword.TRUE else False)))
         else:
-            raise ParserError(f"Expected expression, found {next_token} instead")
+            raise ParserError(f"Expected expression, found {next_token} instead", self.origin, self._peek().line)

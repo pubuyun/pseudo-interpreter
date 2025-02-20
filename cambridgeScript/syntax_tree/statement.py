@@ -53,8 +53,8 @@ class ProcedureDecl(Statement):
 @dataclass
 class FunctionDecl(Statement):
     name: IdentifierToken
-    params: list[tuple[IdentifierToken, "Type"]] | None
-    return_type: "Type"
+    params: list[(IdentifierToken, Type)] | None
+    return_type: Type
     body: list[Statement]
 
     def accept(self, visitor: "StatementVisitor") -> Any:
@@ -74,7 +74,7 @@ class IfStmt(Statement):
 @dataclass
 class CaseStmt(Statement):
     expr: Expression
-    cases: list[tuple[IdentifierToken | LiteralToken, Statement]]
+    cases: list[tuple[IdentifierToken | LiteralToken, list[Statement]]]
     otherwise: Statement | None
 
     def accept(self, visitor: "StatementVisitor") -> Any:
@@ -113,8 +113,8 @@ class WhileStmt(Statement):
 
 @dataclass
 class VariableDecl(Statement):
-    name: IdentifierToken
-    type: "Type"
+    names: list[IdentifierToken]
+    vartype: Type
 
     def accept(self, visitor: "StatementVisitor") -> Any:
         return visitor.visit_variable_decl(self)
@@ -206,12 +206,12 @@ class AssignmentStmt(Statement):
         return visitor.visit_assign(self)
 
 
-# @dataclass
-# class ExprStmt(Statement):
-#     expr: Expression
-#
-#     def accept(self, visitor: "StatementVisitor") -> Any:
-#         return visitor.visit_expr_stmt(self)
+@dataclass
+class ExprStmt(Statement):
+    expr: Expression
+
+    def accept(self, visitor: "StatementVisitor") -> Any:
+        return visitor.visit_expr_stmt(self)
 
 
 @dataclass

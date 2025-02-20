@@ -12,11 +12,18 @@ __all__ = [
 ]
 
 import re
-from dataclasses import dataclass
-
+from dataclasses import dataclass 
 from cambridgeScript.constants import Keyword, Symbol
 
-Value = str | int | float | bool
+
+# char type
+class str1(str):
+    def __new__(cls, value):
+        if len(value) != 1:
+            raise ValueError("char instances must contain exactly one character.")
+        return super().__new__(cls, value)
+    
+Value = str | int | float | bool | str1
 
 
 class _EOFSentinel:
@@ -25,6 +32,18 @@ class _EOFSentinel:
 
 EOF = _EOFSentinel()
 
+class InvalidTokenError(ValueError):
+    def parse3(self, origin, line):
+        if line >= 2 and line <= len(origin) - 1:
+            return f"{line-1} {origin[line-2]}\n{line} {origin[line-1]}\n" + "^^" + "^"*len(origin[line-1]) + f"\n{line+1} {origin[line]}"
+        else:
+            return f"{line} {origin[line-1]}\n" + "^^" + "^"*len(origin[line-1])
+    def __init__(self, prompt, origin, line) -> None:
+        self.prompt = prompt
+        self.origin = origin
+        self.line = line
+    def __str__(self) -> str:
+        return (self.prompt + "\n" + self.parse3(self.origin, self.line))
 
 @dataclass(frozen=True)
 class Token:
@@ -89,15 +108,13 @@ class EOFToken(Token):
             return True
         return super().__eq__(other)
 
-
-# Regex patterns for tokens
 _TOKENS = [
     ("IGNORE", r"/\*.*\*/|(?://|#).*$|[ \t]+"),
     ("NEWLINE", r"\n"),
     ("KEYWORD", "|".join(Keyword)),
+    ("SYMBOL", r"-|(" + "|".join(re.escape(s) for s in Symbol if s != "-") + ")"),
     ("LITERAL", r'-?[0-9]+(?:\.[0-9]+)?|".*?"'),
-    ("SYMBOL", "|".join("\\" + s for s in Symbol)),
-    ("IDENTIFIER", r"[A-Za-z]+"),
+    ("IDENTIFIER", r"[A-Za-z_][A-Za-z0-9_]*"),
     ("INVALID", r"."),
     ("EOF", r"$"),
 ]
@@ -114,7 +131,6 @@ def _parse_literal(literal: str) -> Value:
             return int(literal)
     except ValueError:
         raise ValueError("Invalid literal")
-
 
 def _parse_token(token_string: str, token_type: str, **token_kwargs) -> Token:
     if token_type == "KEYWORD":
@@ -138,13 +154,20 @@ def parse_tokens(code: str) -> list[Token]:
     :return: a list containing the tokens in the program.
     :rtype: list[Token]
     """
+    origin = code.splitlines()
+    originNoSpace = code.replace(" ", "").splitlines()
     res: list[Token] = []
-    line_number: int = 0
+    line_number: int = 1
     line_start: int = 0
+    last_token = None  # record last valid token
+    jump = False # jump to next token, for minus sign
     for match in re.finditer(_TOKEN_REGEX, code, re.M):
+        if jump: 
+            jump = False 
+            continue
         token_type = match.lastgroup
         if token_type is None:
-            raise ValueError("An error occured")
+            raise ValueError("An error occurred")
         token_value = str(match.group())
         token_start = match.start()
         if token_type == "IGNORE":
@@ -154,9 +177,33 @@ def parse_tokens(code: str) -> list[Token]:
             line_start = token_start
             continue
         elif token_type == "INVALID":
-            raise ValueError(
-                f"Invalid token at line {line_number}, column {token_start - line_start}"
+            raise InvalidTokenError(
+                f"Invalid token {originNoSpace[line_number - 1][token_start - line_start - 1]} at line {line_number}, column {token_start - line_start}",
+                origin,
+                line_number
             )
+
+        # process minus sign
+        if token_type == "SYMBOL" and token_value == "-":
+            if (last_token is None or  # first token
+                isinstance(last_token, SymbolToken) or  # after symbol
+                isinstance(last_token, KeywordToken) or  # after keyword
+                isinstance(last_token, EOFToken)):  # EOF
+                # try to match next token
+                match_next = re.match(_TOKEN_REGEX, code[match.end():])
+                if match_next and match_next.lastgroup == "LITERAL":
+                    literal_value = code[match.end():match.end() + len(match_next.group())]
+                    token_value = f"-{literal_value}"
+                    token_type = "LITERAL"
+                    match = re.match(_TOKEN_REGEX, code[match.start():match.start() + len(token_value)])
+                else:
+                    raise InvalidTokenError(
+                        f"Invalid token '-' at line {line_number}, column {token_start - line_start}",
+                        origin,
+                        line_number
+                    )
+                jump = True
+
         try:
             token = _parse_token(
                 token_value,
@@ -165,7 +212,12 @@ def parse_tokens(code: str) -> list[Token]:
                 column=token_start - line_start,
             )
         except ValueError:
-            print(f"Invalid literal {token_value}")
-            raise
+            raise InvalidTokenError(
+                f"Invalid literal {token_value}",
+                origin,
+                line_number
+            )
+
         res.append(token)
+        last_token = token
     return res

@@ -41,7 +41,8 @@ class ExpressionVisitor(ABC):
 
 class StatementVisitor(ABC):
     def visit(self, stmt: Statement) -> Any:
-        return stmt.accept(self)
+        if stmt is not None:
+            return stmt.accept(self)
 
     @abstractmethod
     def visit_proc_decl(self, stmt: ProcedureDecl) -> Any:

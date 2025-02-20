@@ -77,5 +77,4 @@ class Identifier(Expression):
     def accept(self, visitor: "ExpressionVisitor") -> Any:
         return visitor.visit_identifier(self)
 
-
 Assignable = ArrayIndex | Identifier
