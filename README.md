@@ -10,14 +10,13 @@ Pseudocode is supposed to be a flexible way of outlining code, and shouldn't fol
 
 ### Planned features
 
-- `CHAR` datatype
 - Actually implementing the whole interpreter
+- Correctly recognize minus signs
 - A command-line interface
     - Options for implementation details (such as variable scope)
-- Library functions (such as DIV and MOD)
 
 ## How to run
 
-Run with `python3 -m cambridgeScript < file.txt`
+Run with `python3 -m cambridgeScript file.txt`
 
 Python 3.11+ is required (tested on 3.11.2).
