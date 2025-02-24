@@ -183,27 +183,6 @@ def parse_tokens(code: str) -> list[Token]:
                 line_number
             )
 
-        # process minus sign
-        if token_type == "SYMBOL" and token_value == "-":
-            if (last_token is None or  # first token
-                isinstance(last_token, SymbolToken) or  # after symbol
-                isinstance(last_token, KeywordToken) or  # after keyword
-                isinstance(last_token, EOFToken)):  # EOF
-                # try to match next token
-                match_next = re.match(_TOKEN_REGEX, code[match.end():])
-                if match_next and match_next.lastgroup == "LITERAL":
-                    literal_value = code[match.end():match.end() + len(match_next.group())]
-                    token_value = f"-{literal_value}"
-                    token_type = "LITERAL"
-                    match = re.match(_TOKEN_REGEX, code[match.start():match.start() + len(token_value)])
-                else:
-                    raise InvalidTokenError(
-                        f"Invalid token '-' at line {line_number}, column {token_start - line_start}",
-                        origin,
-                        line_number
-                    )
-                jump = True
-
         try:
             token = _parse_token(
                 token_value,
