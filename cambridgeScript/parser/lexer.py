@@ -13,6 +13,7 @@ __all__ = [
 
 import re
 from dataclasses import dataclass
+
 from cambridgeScript.constants import Keyword, Symbol
 
 
@@ -125,7 +126,7 @@ _TOKENS = [
     ("KEYWORD", "|".join(Keyword)),
     ("LITERAL", r'-?[0-9]+(?:\.[0-9]+)?|".*?"'),
     ("SYMBOL", r"(" + "|".join(map(re.escape, Symbol)) + ")"),
-    ("IDENTIFIER", r"[A-Za-z]+"),
+    ("IDENTIFIER", r"[A-Za-z0-9]+"),
     ("INVALID", r"."),
     ("EOF", r"$"),
 ]
@@ -208,5 +209,4 @@ def parse_tokens(code: str) -> list[Token]:
             )
 
         res.append(token)
-        last_token = token
     return res
