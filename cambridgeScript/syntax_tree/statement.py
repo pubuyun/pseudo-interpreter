@@ -207,14 +207,6 @@ class AssignmentStmt(Statement):
 
 
 @dataclass
-class ExprStmt(Statement):
-    expr: Expression
-
-    def accept(self, visitor: "StatementVisitor") -> Any:
-        return visitor.visit_expr_stmt(self)
-
-
-@dataclass
 class Program(Statement):
     statements: list[Statement]
 
