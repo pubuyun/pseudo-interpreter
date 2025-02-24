@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from enum import Enum
 
 from cambridgeScript.syntax_tree import Expression
-from cambridgeScript.parser.lexer import str1
+from cambridgeScript.parser.lexer import char
 
 
 class PrimitiveType(Enum):
     INTEGER = int
     REAL = float
-    CHAR = str1
+    CHAR = char
     STRING = str
     BOOLEAN = bool
 
