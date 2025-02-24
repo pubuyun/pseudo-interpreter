@@ -1,0 +1,2 @@
+- [ ] change return statements to exception catching
+- [ ] fix parser
