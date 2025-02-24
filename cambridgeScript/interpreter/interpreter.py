@@ -66,7 +66,7 @@ class InterpreterError(Exception):
     def __str__(self) -> str:
         msg = self.message()
         trace = self.parse_traceback()
-        return f"{msg}{': \n' if trace else ''}{trace}"
+        return f"{msg}{': ' + chr(10) if trace else ''}{trace}"
 
 
 class InvalidNode(InterpreterError):

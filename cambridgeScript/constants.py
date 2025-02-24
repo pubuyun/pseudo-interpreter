@@ -73,7 +73,7 @@ class Symbol(StrEnum):
     LESS = "<"
     GREAT = ">"
     ADD = "+"
-    STRADD = "&"
+    CONCAT = "&"
     SUB = "-"
     MUL = "*"
     DIV = "/"

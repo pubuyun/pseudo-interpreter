@@ -124,8 +124,8 @@ _TOKENS = [
     ("NEWLINE", r"\n"),
     ("KEYWORD", "|".join(Keyword)),
     ("LITERAL", r'-?[0-9]+(?:\.[0-9]+)?|".*?"'),
-    ("SYMBOL", r"(" + "|".join(map(re.escape, Symbol) + ")")),
-    ("IDENTIFIER", r"[A-Za-z]"),
+    ("SYMBOL", r"(" + "|".join(map(re.escape, Symbol)) + ")"),
+    ("IDENTIFIER", r"[A-Za-z]+"),
     ("INVALID", r"."),
     ("EOF", r"$"),
 ]

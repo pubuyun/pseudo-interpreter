@@ -27,7 +27,7 @@ REPEAT
              myList[i+1] <- temp
              swap <- TRUE
         ENDIF
-    NEXT
+    NEXT i
     top <- top - 1
 UNTIL (NOT swap) AND (top = 0)  
 
@@ -35,4 +35,4 @@ UNTIL (NOT swap) AND (top = 0)
 
 FOR i <- 0 TO 8
     OUTPUT myList[i]
-NEXT
+NEXT i
