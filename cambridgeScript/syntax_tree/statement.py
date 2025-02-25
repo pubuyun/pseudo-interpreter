@@ -53,7 +53,7 @@ class ProcedureDecl(Statement):
 @dataclass
 class FunctionDecl(Statement):
     name: IdentifierToken
-    params: list[tuple[IdentifierToken, Type]] | None
+    params: list[(IdentifierToken, Type)] | None
     return_type: Type
     body: list[Statement]
 
@@ -204,6 +204,14 @@ class AssignmentStmt(Statement):
 
     def accept(self, visitor: "StatementVisitor") -> Any:
         return visitor.visit_assign(self)
+
+
+@dataclass
+class ExprStmt(Statement):
+    expr: Expression
+
+    def accept(self, visitor: "StatementVisitor") -> Any:
+        return visitor.visit_expr_stmt(self)
 
 
 @dataclass

@@ -36,14 +36,14 @@ NEXT i
 
 FOR i <- 1 TO 5
     FOR j <- 1 TO 5
-        OUTPUT "ArrTwoD[" & i & ", " & j & "]: " & ArrTwoD[i, j]
+        OUTPUT "ArrTwoD[" , i , ", " , j , "]: " , ArrTwoD[i, j]
     NEXT j
 NEXT i
 
 FOR i <- 1 TO 5
     FOR j <- 0 TO 4
         FOR k <- 2 TO 6
-            OUTPUT "ArrThreeD[" & i & ", " & j & ", " & k & "]: " & ArrThreeD[i, j, k]
+            OUTPUT "ArrThreeD[" , i , ", " , j , ", " , k , "]: " , ArrThreeD[i, j, k]
         NEXT k
     NEXT j
 NEXT i

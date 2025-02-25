@@ -40,6 +40,8 @@ import random
 
 
 class InterpreterError(Exception):
+    origin: list[str]
+
     def __init__(self, prompt, origin, line):
         self.prompt = prompt
         self.origin = origin
@@ -72,7 +74,6 @@ class InterpreterError(Exception):
 class InvalidNode(InterpreterError):
     node: Statement | Expression
     token: Token
-    origin: list[str]
 
     def __init__(self, node: Statement | Expression, token: Token, origin):
         self.node = node
@@ -122,9 +123,27 @@ class PseudoAssignmentError(InterpreterError, RuntimeError):
 
 
 class PseudoIndexError(InterpreterError, ValueError):
+    def __init__(self, name, indices, ranges, origin, line):
+        self.name = name
+        self.indices = indices
+        self.ranges = ranges
+        self.origin = origin
+        self.line = line
+
+    def message(self) -> str:
+        return f"List index out of range, trying to access {self.name}{''.join(f'[{indice}]' for indice in self.indices)}, but {self.name} has a range of {self.ranges}"
+
+
+class PseudoSubroutineError(InterpreterError, RuntimeError):
 
     def message(self) -> str:
         return self.prompt
+
+
+class ReturnException(Exception):
+    def __init__(self, value):
+        self.value = value
+        super().__init__(value)
 
 
 class Interpreter(ExpressionVisitor, StatementVisitor):
@@ -134,7 +153,6 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         from cambridgeScript.interpreter.builtin_function import create_builtins
 
         self.variable_state = variable_state
-        self.variable_stack = []
         self.origin = origin.splitlines()
         self.builtins = create_builtins(self)
 
@@ -146,11 +164,7 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
 
     def visit_statements(self, statements: list[Statement]):
         for stmt in statements:
-            if isinstance(stmt, ReturnStmt):
-                return self.visit_return(stmt)
-            ret = self.visit(stmt)
-            if ret is not None:
-                return ret
+            self.visit(stmt)
 
     def visit_binary_op(self, expr: BinaryOp) -> Value:
         # Recursively visit left and right operands
@@ -178,30 +192,30 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         elif function_name in self.variable_state.functions:
             func = self.variable_state.functions[function_name]
 
-            current_scope = self.variable_state.variables.copy()
             # Create new scope for function parameters
-            new_scope = self.variable_state.variables.copy()
+            self.variable_state.push_scope()
             if func.params is not None:
                 # Bind function parameters to new variable state
                 for param, original_param in zip(func_call.params, func.params):
                     param_value = self.visit(param)
-                    new_scope[original_param[0].value] = (
+                    self.variable_state.variables[original_param[0].value] = (
                         param_value,
                         original_param[1],
                     )
 
-            # Enter new scope
-            self.variable_state.variables = new_scope
-            ret = self.visit_statements(func.body)
-            for var in current_scope.keys():
-                current_scope[var] = new_scope[var]
-            # Restore previous scope
-            self.variable_state.variables = current_scope
-            if ret == None:
-                raise RuntimeError(
-                    f"There is a possibility that function {function_name} does not return any value."
+            try:
+                # Execute function body and handle return value via exception
+                self.visit_statements(func.body)
+                # If we reach here, no return statement was encountered
+                raise PseudoSubroutineError(
+                    f"Function {function_name} did not return a value",
+                    self.origin,
+                    line,
                 )
-            return ret
+            except ReturnException as ret:
+                # Restore previous scope and return value
+                self.variable_state.pop_scope()
+                return ret.value
         else:
             raise PseudoUndefinedError(
                 f"name {function_name} is not defined", self.origin, line
@@ -209,20 +223,22 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
 
     def visit_array_index(self, expr: ArrayIndex) -> Value:
         name = expr.array.token.value
-        if not isinstance(self.variable_state.variables[name][1], ArrayType):
+        array_type = self.variable_state.variables[name][1]
+        if not isinstance(array_type, ArrayType):
             raise PseudoAssignmentError(
                 f"{name} is not an array.", self.origin, expr.array.token.line
             )
-        indices = [self.visit(indexexp) - 1 for indexexp in expr.index]
+
+        indices = [self.visit(indexexp) for indexexp in expr.index]
+        ranges = [(self.visit(a), self.visit(b)) for a, b in array_type.ranges]
+
         try:
-            target = reduce(
-                lambda x, i: x[i],
-                indices,
-                self.variable_state.variables[name][0].copy(),
-            )
+            target = self.variable_state.get_array_value(name, indices, ranges)
         except IndexError:
             raise PseudoIndexError(
-                f"List index out of range, trying to access {name}{''.join(f'[{indice}]' for indice in indices)}",
+                name,
+                indices,
+                ranges,
                 self.origin,
                 expr.array.token.line,
             )
@@ -255,17 +271,18 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
     def visit_if(self, stmt: IfStmt) -> None:
         condition = self.visit(stmt.condition)
         if condition:
-            return self.visit_statements(stmt.then_branch)
+            self.visit_statements(stmt.then_branch)
         elif stmt.else_branch is not None:
-            return self.visit_statements(stmt.else_branch)
+            self.visit_statements(stmt.else_branch)
 
     def visit_case(self, stmt: CaseStmt):
         expr = self.visit(stmt.expr)
         for i in stmt.cases:
             if i[0].value == expr:
-                return self.visit_statements(i[1])
+                self.visit_statements(i[1])
+                return
         if stmt.otherwise is not None:
-            return self.visit_statements(stmt.otherwise)
+            self.visit_statements(stmt.otherwise)
 
     def visit_for_loop(self, stmt: ForStmt) -> None:
         if isinstance(stmt, ArrayIndex):
@@ -281,20 +298,14 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
             current_value <= end_value if step_value > 0 else current_value >= end_value
         ):
             self.variable_state.variables[name] = (current_value, PrimitiveType.INTEGER)
-            ret = self.visit_statements(stmt.body)
-            if ret is not None:
-                return ret
+            self.visit_statements(stmt.body)
             current_value += step_value
 
     def visit_repeat_until(self, stmt: RepeatUntilStmt) -> None:
-        ret = self.visit_statements(stmt.body)
-        if ret is not None:
-            return ret
+        self.visit_statements(stmt.body)
         expr = self.visit(stmt.condition)
         while not expr:
-            ret = self.visit_statements(stmt.body)
-            if ret is not None:
-                return ret
+            self.visit_statements(stmt.body)
             expr = self.visit(stmt.condition)
 
     def visit_while(self, stmt: WhileStmt) -> None:
@@ -302,19 +313,8 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
             raise RuntimeError("While loop never stops")
         expr = self.visit(stmt.condition)
         while expr:
-            ret = self.visit_statements(stmt.body)
-            if ret is not None:
-                return ret
+            self.visit_statements(stmt.body)
             expr = self.visit(stmt.condition)
-
-    def create_nd_array(self, ranges, default=None):
-        if not ranges:
-            return default  # When there are no more ranges, return default value
-        start, end = ranges[0]
-        # Recursively create next level of list
-        return [
-            self.create_nd_array(ranges[1:], default) for _ in range(start, end + 1)
-        ]
 
     def visit_variable_decl(self, stmt: VariableDecl) -> None:
         for name in stmt.names:
@@ -323,7 +323,7 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
                     (self.visit(a), self.visit(b)) for a, b in stmt.vartype.ranges
                 ]
                 self.variable_state.variables[name.value] = (
-                    self.create_nd_array(ranges),
+                    self.variable_state.create_nd_array(ranges),
                     stmt.vartype,
                 )
             else:
@@ -335,7 +335,9 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
     def visit_input(self, stmt: InputStmt) -> None:
         if isinstance(stmt.variable, ArrayIndex):
             name = stmt.variable.array.token.value
-            vartype = self.variable_state.variables[name][1].type
+            array_type = self.variable_state.variables[name][1]
+            vartype = array_type.type
+
         else:
             name = stmt.variable.token.value
             vartype = self.variable_state.variables[name][1]
@@ -390,14 +392,9 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
                 )
             val = inp
         if isinstance(stmt.variable, ArrayIndex):
-            indices = [self.visit(indexexp) - 1 for indexexp in stmt.variable.index]
-            arrcpy = self.variable_state.variables[name][0].copy()
-            target = reduce(lambda x, i: x[i], indices[:-1], arrcpy)
-            target[indices[-1]] = val
-            self.variable_state.variables[name] = (
-                arrcpy,
-                self.variable_state.variables[name][1],
-            )
+            indices = [self.visit(indexexp) for indexexp in stmt.variable.index]
+            ranges = [(self.visit(a), self.visit(b)) for a, b in vartype.ranges]
+            self.variable_state.set_array_value(name, indices, val, ranges)
         else:
             self.variable_state.variables[name] = (
                 val,
@@ -408,9 +405,8 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         values = [self.visit(expr) for expr in stmt.values]
         print("".join(map(str, values)))
 
-    def visit_return(self, stmt: ReturnStmt) -> Value:
-        # Evaluate the return expression and return it to the caller
-        return self.visit(stmt.value)
+    def visit_return(self, stmt: ReturnStmt) -> None:
+        raise ReturnException(self.visit(stmt.value))
 
     def visit_f_open(self, stmt: FileOpenStmt) -> None:
         pass
@@ -436,48 +432,53 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         # Retrieve the procedure statement
         proc = self.variable_state.procedures[procedure_name]
 
-        # Prepare a new scope for procedure parameters
-        current_scope = self.variable_state.variables.copy()
-        new_scope = current_scope.copy()
+        # Create new scope for procedure parameters
+        self.variable_state.push_scope()
         if proc.params is not None:
             # Bind parameters passed to the procedure to the new scope
             for param, proc_param in zip(stmt.args, proc.params):
                 param_value = self.visit(param)
-                new_scope[proc_param[0].value] = (param_value, proc_param[1])
+                self.variable_state.variables[proc_param[0].value] = (
+                    param_value,
+                    proc_param[1],
+                )
 
-        # Enter the new scope for the procedure
-        self.variable_state.variables = new_scope
-
-        # Execute the procedure's statements
-        for statement in proc.body:
-            self.visit(statement)
-
-        for var in current_scope.keys():
-            current_scope[var] = new_scope[var]
-        # Restore the previous scope
-        self.variable_state.variables = current_scope
+        try:
+            # Execute the procedure's statements
+            self.visit_statements(proc.body)
+        except ReturnException:
+            raise PseudoSubroutineError(
+                f"Procedure {procedure_name} mustn't has return values",
+                self.origin,
+                line,
+            )
+        finally:
+            # Restore the previous scope
+            self.variable_state.pop_scope()
 
     def visit_assign(self, stmt: AssignmentStmt) -> None:
         if isinstance(stmt.target, ArrayIndex):
             name = stmt.target.array.token.value
-            """ class ArrayIndex(Expression):
-                    array: Expression
-                    index: list[Expression] """
+            array_type = self.variable_state.variables[name][1]
             val = self.visit(stmt.value)
-            if not self.check_type(val, self.variable_state.variables[name][1].type):
+            if not self.check_type(val, array_type.type):
                 raise PseudoAssignmentError(
-                    f"Trying to assign invalid type to array {name}, expected {self.variable_state.variables[name][1].type.name}",
+                    f"Trying to assign invalid type to array {name}, expected {array_type.type.name}",
                     self.origin,
                     stmt.target.array.token.line,
                 )
-            indices = [self.visit(indexexp) - 1 for indexexp in stmt.target.index]
-            arrcpy = self.variable_state.variables[name][0].copy()
-            target = reduce(lambda x, i: x[i], indices[:-1], arrcpy)
-            target[indices[-1]] = val
-            self.variable_state.variables[name] = (
-                arrcpy,
-                self.variable_state.variables[name][1],
-            )
+            indices = [self.visit(indexexp) for indexexp in stmt.target.index]
+            ranges = [(self.visit(a), self.visit(b)) for a, b in array_type.ranges]
+            try:
+                self.variable_state.set_array_value(name, indices, val, ranges)
+            except IndexError:
+                raise PseudoIndexError(
+                    name,
+                    indices,
+                    ranges,
+                    self.origin,
+                    stmt.target.array.token.line,
+                )
         else:
             name = stmt.target.token.value
             if name not in self.variable_state.variables:
