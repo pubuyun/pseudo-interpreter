@@ -1,14 +1,5 @@
 import random
-from cambridgeScript.interpreter.interpreter import (
-    InterpreterError,
-    InvalidNode,
-    PseudoOpError,
-    PseudoBuiltinError,
-    PseudoInputError,
-    PseudoUndefinedError,
-    PseudoAssignmentError,
-    PseudoIndexError,
-)
+from cambridgeScript.exceptions import PseudoBuiltinError
 
 
 def create_builtins(interpreter):

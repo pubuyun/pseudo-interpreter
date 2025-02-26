@@ -55,76 +55,14 @@ from cambridgeScript.parser.lexer import (
     EOFToken,
     EOF,
 )
+from cambridgeScript.exceptions import (
+    ParserError,
+    UnexpectedToken,
+    UnexpectedTokenType,
+    _InvalidMatch,
+)
 
 T = TypeVar("T")
-
-
-class ParserError(Exception):
-    """Base exception class for errors from the parser"""
-
-    def parse_traceback(self, origin, line):
-        if line >= 2 and line <= len(origin) - 1:
-            return (
-                f"{line-1} {origin[line-2]}\n{line} {origin[line-1]}\n"
-                + "^^"
-                + "^" * len(origin[line - 1])
-                + f"\n{line+1} {origin[line]}"
-            )
-        else:
-            return f"{line} {origin[line-1]}\n" + "^^" + "^" * len(origin[line - 1])
-
-    def __init__(self, prompt, origin, line) -> None:
-        self.prompt = prompt
-        self.origin = origin
-        self.line = line
-
-    def __str__(self) -> str:
-        return self.prompt + "\n" + self.parse_traceback(self.origin, self.line)
-
-
-class _InvalidMatch(ParserError):
-    def __init__(self):
-        pass
-
-
-class UnexpectedToken(ParserError):
-    """Raised when the parser encounters an unexpected token"""
-
-    expected: TokenComparable
-    actual: Token
-
-    def __init__(self, expected: TokenComparable, actual: Token, origin, line):
-        self.expected = expected
-        self.actual = actual
-        self.origin = origin
-        self.line = line
-
-    def __str__(self):
-        return (
-            f"Expected '{self.expected}' at {self.actual.location}, "
-            f"found '{self.actual}' instead\n"
-            f"{self.parse_traceback(self.origin, self.line)}"
-        )
-
-
-class UnexpectedTokenType(ParserError):
-    """Raised when the parser encounters an unexpected token type"""
-
-    expected_type: type[Token]
-    actual: Token
-
-    def __init__(self, expected: type[Token], actual: Token, origin, line):
-        self.expected_type = expected
-        self.actual = actual
-        self.origin = origin
-        self.line = line
-
-    def __str__(self):
-        return (
-            f"Expected {self.expected_type.__name__.lower()} at {self.actual.location}, "
-            f"found '{self.actual}' instead\n"
-            f"{self.parse_traceback(self.origin, self.line)}"
-        )
 
 
 class Parser:

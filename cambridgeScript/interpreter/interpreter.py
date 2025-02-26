@@ -1,10 +1,18 @@
 from cambridgeScript.interpreter.variables import VariableState
-from cambridgeScript.parser.lexer import LiteralToken, Value, Token
-from cambridgeScript.syntax_tree.expression import Expression, Assignable
-from cambridgeScript.syntax_tree.types import Type, PrimitiveType, ArrayType
-from itertools import product
-from functools import reduce
-import ast
+from cambridgeScript.parser.lexer import LiteralToken, Value
+from cambridgeScript.syntax_tree.expression import Expression
+from cambridgeScript.syntax_tree.types import PrimitiveType, ArrayType
+from cambridgeScript.exceptions import (
+    InterpreterError,
+    InvalidNode,
+    PseudoAssignmentError,
+    PseudoIndexError,
+    PseudoSubroutineError,
+    PseudoUndefinedError,
+    PseudoOpError,
+    PseudoInputError,
+    ReturnException,
+)
 
 from cambridgeScript.syntax_tree import (
     Expression,
@@ -36,129 +44,18 @@ from cambridgeScript.syntax_tree import (
     Program,
 )
 from cambridgeScript.syntax_tree.visitors import ExpressionVisitor, StatementVisitor
+from cambridgeScript.interpreter.builtin_function import create_builtins
 import random
-
-
-class InterpreterError(Exception):
-    origin: list[str]
-
-    def __init__(self, prompt, origin, line):
-        self.prompt = prompt
-        self.origin = origin
-        self.line = line
-
-    def message(self) -> str:
-        return self.prompt
-
-    def parse_traceback(self) -> str:
-        if not hasattr(self, "origin") or not hasattr(self, "line"):
-            return ""
-        if self.line >= 2 and self.line <= len(self.origin) - 1:
-            return (
-                f"{self.line-1} {self.origin[self.line-2]}\n{self.line} {self.origin[self.line-1]}\n"
-                + "  "
-                + "^" * len(self.origin[self.line - 1])
-                + f"\n{self.line+1} {self.origin[self.line]}"
-            )
-        else:
-            return f"{self.line} {self.origin[self.line-1]}\n  " + "^" * len(
-                self.origin[self.line - 1]
-            )
-
-    def __str__(self) -> str:
-        msg = self.message()
-        trace = self.parse_traceback()
-        return f"{msg}{': ' + chr(10) if trace else ''}{trace}"
-
-
-class InvalidNode(InterpreterError):
-    node: Statement | Expression
-    token: Token
-
-    def __init__(self, node: Statement | Expression, token: Token, origin):
-        self.node = node
-        self.token = token
-        self.origin = origin
-        self.line = token.line
-
-    def message(self) -> str:
-        return f"Invalid node at {self.token.location}: {self.node}"
-
-
-class PseudoOpError(InterpreterError, TypeError):
-    op_error: TypeError
-    line: int
-
-    def __init__(self, left, right, op_error):
-        self.left = left
-        self.right = right
-        self.op_error = op_error
-
-    def message(self) -> str:
-        return (
-            f"Unsupported operation for {self.left} and {self.right}: {self.op_error}"
-        )
-
-
-class PseudoBuiltinError(InterpreterError, ValueError):
-    def __init__(self, prompt):
-        self.prompt = prompt
-
-    def message(self) -> str:
-        return self.prompt
-
-
-class PseudoInputError(InterpreterError, ValueError):
-
-    def message(self) -> str:
-        return f"Input Error: {self.prompt}"
-
-
-class PseudoUndefinedError(InterpreterError, RuntimeError):
-
-    def message(self) -> str:
-        return f"Undefined Identifier: {self.prompt}"
-
-
-class PseudoAssignmentError(InterpreterError, RuntimeError):
-
-    def message(self) -> str:
-        return f"Assignment Error: {self.prompt}"
-
-
-class PseudoIndexError(InterpreterError, ValueError):
-    def __init__(self, name, indices, ranges, origin, line):
-        self.name = name
-        self.indices = indices
-        self.ranges = ranges
-        self.origin = origin
-        self.line = line
-
-    def message(self) -> str:
-        return f"List index out of range, trying to access {self.name}{''.join(f'[{indice}]' for indice in self.indices)}, but {self.name} has a range of {self.ranges}"
-
-
-class PseudoSubroutineError(InterpreterError, RuntimeError):
-
-    def message(self) -> str:
-        return self.prompt
-
-
-class ReturnException(Exception):
-    def __init__(self, value):
-        self.value = value
-        super().__init__(value)
 
 
 class Interpreter(ExpressionVisitor, StatementVisitor):
     variable_state: VariableState
 
-    def __init__(self, variable_state: VariableState, origin: str):
-        from cambridgeScript.interpreter.builtin_function import create_builtins
-
+    def __init__(self, variable_state: VariableState, origin: str, input_stream=None):
         self.variable_state = variable_state
         self.origin = origin.splitlines()
         self.builtins = create_builtins(self)
+        self.input_stream = input_stream or __import__("sys").stdin
 
     def visit(self, thing: Expression | Statement):
         if isinstance(thing, Expression):
@@ -371,46 +268,10 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
                 stmt.variable.token.line,
             )
 
-        inp = input().strip()
-        print(inp)
-        if vartype == PrimitiveType.INTEGER:
-            try:
-                inp = float(inp)
-            except:
-                raise PseudoInputError(
-                    f"Non number value entered for integer variable {name}",
-                    self.origin,
-                    stmt.variable.token.line,
-                )
-            if inp % 1:
-                raise PseudoInputError(
-                    f"Entered real number for integer variable {name}",
-                    self.origin,
-                    stmt.variable.token.line,
-                )
-            val = int(inp)
-        elif vartype == PrimitiveType.BOOLEAN:
-            if not inp.upper() in ["TRUE", "FALSE"]:
-                raise PseudoInputError(
-                    f"invalid input {inp} for boolean variable {name}",
-                    self.origin,
-                    stmt.variable.token.line,
-                )
-            val = True if inp.upper() == "TRUE" else False
-        elif vartype == PrimitiveType.CHAR:
-            val = inp[0]
-        elif vartype == PrimitiveType.STRING:
-            val = inp
-        elif vartype == PrimitiveType.REAL:
-            try:
-                inp = float(inp)
-            except:
-                raise PseudoInputError(
-                    f"Non number value entered for integer variable {name}",
-                    self.origin,
-                    stmt.variable.token.line,
-                )
-            val = inp
+        inp = self.input_stream.readline().strip()
+        val = PrimitiveType.parse_to_type(
+            vartype, inp, name, self.origin, stmt.variable.token.line
+        )
         if isinstance(stmt.variable, ArrayIndex):
             indices = [self.visit(indexexp) for indexexp in stmt.variable.index]
             ranges = [(self.visit(a), self.visit(b)) for a, b in vartype.ranges]

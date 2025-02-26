@@ -53,7 +53,7 @@ class ProcedureDecl(Statement):
 @dataclass
 class FunctionDecl(Statement):
     name: IdentifierToken
-    params: list[(IdentifierToken, Type)] | None
+    params: list[tuple[IdentifierToken, Type]] | None
     return_type: Type
     body: list[Statement]
 
