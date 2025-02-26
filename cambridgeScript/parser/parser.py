@@ -315,7 +315,7 @@ class Parser:
         # First item
         try:
             result = [getter()]
-        except _InvalidMatch:
+        except (_InvalidMatch, ParserError):
             return []
         while self._match(delimiter):
             result.append(getter())
