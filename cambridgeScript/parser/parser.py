@@ -418,20 +418,21 @@ class Parser:
     def _case_stmt(self) -> CaseStmt:
         self._consume_first(Keyword.CASE_OF)
         identifier = self._expression()
-        cases = []
-        bodies = []
+        cases: list[Expression] = []
+        bodies: list[list[Statement]] = []
         otherwise = None
         while True:
-            case = self._advance()
-            self._consume(Symbol.COLON)
             body = []
-            if case == Keyword.OTHERWISE:
+            if self._check(Keyword.OTHERWISE):
+                self._advance()
+                self._consume(Symbol.COLON)
                 otherwise = self._statements_until(Keyword.ENDCASE)
                 break
-            # exp1 =  (isinstance(self._peek_ahead(), SymbolToken) and self._peek_ahead().symbol == Symbol.COLON)
-            # exp2 =  (isinstance(self._peek(), KeywordToken) and self._peek().keyword == Keyword.ENDCASE)
-            # print(exp1, exp2)
-            # print(self._peek(), self._peek_ahead())
+            if self._check(Keyword.ENDCASE):
+                self._advance()
+                break
+            case = self._expression()
+            self._consume(Symbol.COLON)
             while True:
                 index = self._next_index
                 try:
@@ -439,17 +440,8 @@ class Parser:
                 except:
                     self._next_index = index
                     break
-            if not isinstance(case, (IdentifierToken, LiteralToken)):
-                raise ParserError(
-                    "Invalid case for case statement", self.origin, self._peek().line
-                )
             cases.append(case)
             bodies.append(body)
-
-            if self._check(Keyword.ENDCASE):
-                self._advance()
-                break
-
         return CaseStmt(identifier, list(zip(cases, bodies)), otherwise)
 
     def _for_loop(self) -> ForStmt:
@@ -467,7 +459,7 @@ class Parser:
 
         body = self._statements_until(Keyword.NEXT)
         if isinstance(self._peek(), IdentifierToken):
-            print(self._advance())
+            self._advance()
 
         return ForStmt(identifier, start_value, end_value, step_value, body)
 
@@ -664,9 +656,14 @@ class Parser:
         elif isinstance(next_token, IdentifierToken):
             self._advance()
             return Identifier(next_token)
+        elif isinstance(next_token, SymbolToken) and next_token.symbol == Symbol.SUB:
+            # Handle unary minus
+            self._advance()
+            operand = self._primary()
+            return UnaryOp(Operator.SUB, operand)
         else:
             raise ParserError(
                 f"Expected expression, found {next_token} instead",
                 self.origin,
-                self._peek().line,
+                next_token.line,
             )

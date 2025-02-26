@@ -101,6 +101,8 @@ class PseudoOpError(InterpreterError, TypeError):
 
 
 class PseudoBuiltinError(InterpreterError, ValueError):
+    def __init__(self, prompt):
+        self.prompt = prompt
 
     def message(self) -> str:
         return self.prompt
@@ -274,7 +276,7 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
     def visit_case(self, stmt: CaseStmt):
         expr = self.visit(stmt.expr)
         for i in stmt.cases:
-            if i[0].value == expr:
+            if self.visit(i[0]) == expr:
                 self.visit_statements(i[1])
                 return
         if stmt.otherwise is not None:
