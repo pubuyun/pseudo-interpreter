@@ -124,7 +124,7 @@ _TOKENS = [
     ("IGNORE", r"/\*.*\*/|(?://|#).*$|[ \t]+"),
     ("NEWLINE", r"\n"),
     ("KEYWORD", "|".join(Keyword)),
-    ("LITERAL", r'-?[0-9]+(?:\.[0-9]+)?|".*?"'),
+    ("LITERAL", r'-?[0-9]+(?:\.[0-9]+)?|".*?"|TRUE|FALSE'),
     ("SYMBOL", r"(" + "|".join(map(re.escape, Symbol)) + ")"),
     ("IDENTIFIER", r"[A-Za-z0-9]+"),
     ("INVALID", r"."),
@@ -136,6 +136,10 @@ _TOKEN_REGEX = "|".join(f"(?P<{name}>{regex})" for name, regex in _TOKENS)
 def _parse_literal(literal: str) -> Value:
     if literal.startswith('"') and literal.endswith('"'):
         return literal[1:-1]
+    if literal == "TRUE":
+        return True
+    if literal == "FALSE":
+        return False
     try:
         if "." in literal:
             return float(literal)
@@ -168,7 +172,7 @@ def parse_tokens(code: str) -> list[Token]:
     :rtype: list[Token]
     """
     origin = code.splitlines()
-    originNoSpace = code.replace(" ", "").splitlines()
+    origin_no_space = code.replace(" ", "").splitlines()
     res: list[Token] = []
     line_number: int = 1
     line_start: int = 0
@@ -191,7 +195,7 @@ def parse_tokens(code: str) -> list[Token]:
             continue
         elif token_type == "INVALID":
             raise InvalidTokenError(
-                f"Invalid token {originNoSpace[line_number - 1][token_start - line_start - 1]} at line {line_number}, column {token_start - line_start}",
+                f"Invalid token {origin_no_space[line_number - 1][token_start - line_start - 1]} at line {line_number}, column {token_start - line_start}",
                 origin,
                 line_number,
             )

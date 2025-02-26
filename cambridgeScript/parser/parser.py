@@ -83,9 +83,8 @@ class ParserError(Exception):
 
 
 class _InvalidMatch(ParserError):
-    # Raised when the first token of a match is invalid
-    # Indicates that no tokens were consumed
-    pass
+    def __init__(self):
+        pass
 
 
 class UnexpectedToken(ParserError):
@@ -223,7 +222,7 @@ class Parser:
     def _consume_first(self, target: TokenComparable) -> Token:
         # Variant of _consume() that raises _InvalidMatch instead
         if not (res := self._match(target)):
-            raise UnexpectedToken(target, self._peek(), self.origin, self._peek().line)
+            raise _InvalidMatch
         return res
 
     def _consume_type(self, type_: type[Token]) -> Token:
@@ -245,11 +244,7 @@ class Parser:
                 Keyword.BOOLEAN,
             )
         ):
-            raise _InvalidMatch(
-                f"Expected primitive type, got {self._peek()}",
-                self.origin,
-                self._peek().line,
-            )
+            raise _InvalidMatch
         assert isinstance(res, KeywordToken)
         type_ = PrimitiveType[res.keyword]
         return type_
@@ -283,9 +278,7 @@ class Parser:
             return self._array_type()
         except _InvalidMatch:
             pass
-        raise _InvalidMatch(
-            f"Expected Type, got {self._peek()} instead", self.origin, self._peek().line
-        )
+        raise _InvalidMatch
 
     def _parameter(self) -> tuple[IdentifierToken, Type]:
         if (
@@ -452,8 +445,11 @@ class Parser:
                 )
             cases.append(case)
             bodies.append(body)
-            if self._match(Keyword.ENDCASE):
+
+            if self._check(Keyword.ENDCASE):
+                self._advance()
                 break
+
         return CaseStmt(identifier, list(zip(cases, bodies)), otherwise)
 
     def _for_loop(self) -> ForStmt:
@@ -469,28 +465,11 @@ class Parser:
         else:
             step_value = None
 
-        body = []
-        while not isinstance(self._peek_ahead(), EOFToken):
-            if (
-                self._check(Keyword.NEXT)
-                and isinstance(self._peek_ahead(1), IdentifierToken)
-                and self._peek_ahead(1).value == identifier.token.value
-            ):
-                self._advance()
-                self._advance()
-                return ForStmt(identifier, start_value, end_value, step_value, body)
-            else:
-                if not (
-                    isinstance(self._peek(), EOFToken) or self._check(Keyword.NEXT)
-                ):
-                    body.append(self._statement())
-                else:
-                    raise SyntaxError(
-                        f"End statement of for loop of identifier {identifier.token.value} not found. Check if there is a typo."
-                    )
-        raise SyntaxError(
-            f"End statement of for loop of identifier {identifier.token.value} not found. Check if there is a typo."
-        )
+        body = self._statements_until(Keyword.NEXT)
+        if isinstance(self._peek(), IdentifierToken):
+            print(self._advance())
+
+        return ForStmt(identifier, start_value, end_value, step_value, body)
 
     def _repeat_loop(self) -> RepeatUntilStmt:
         self._consume_first(Keyword.REPEAT)
@@ -507,19 +486,20 @@ class Parser:
 
     def _declare_variable(self) -> VariableDecl:
         self._consume_first(Keyword.DECLARE)
-        names = []
-        while (
-            isinstance(self._peek_ahead(), SymbolToken)
-            and self._peek_ahead().symbol == Symbol.COMMA
-        ):
-            name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
-            self._consume_type(SymbolToken)
-            names.append(name)
+        # # Multiple variable declaration
+        # names = []
+        # while (
+        #     isinstance(self._peek_ahead(), SymbolToken)
+        #     and self._peek_ahead().symbol == Symbol.COMMA
+        # ):
+        #     name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
+        #     self._consume_type(SymbolToken)
+        #     names.append(name)
         name: IdentifierToken = self._consume_type(IdentifierToken)  # type: ignore
-        names.append(name)
+        # names.append(name)
         self._consume(Symbol.COLON)
         type_ = self._type()
-        return VariableDecl(names, type_)
+        return VariableDecl(name, type_)
 
     def _declare_constant(self) -> ConstantDecl:
         self._consume_first(Keyword.CONSTANT)
@@ -642,7 +622,7 @@ class Parser:
             {
                 Symbol.ADD: Operator.ADD,
                 Symbol.SUB: Operator.SUB,
-                Symbol.CONCAT: Operator.ADD,
+                Symbol.CONCAT: Operator.CONCAT,
             },
         )
 
@@ -652,8 +632,8 @@ class Parser:
             {
                 Symbol.MUL: Operator.MUL,
                 Symbol.DIV: Operator.DIV,
-                Symbol.DDIV: Operator.DDIV,
-                Symbol.MOD: Operator.MOD,
+                # Symbol.DDIV: Operator.DDIV,
+                # Symbol.MOD: Operator.MOD,
             },
         )
 
@@ -678,26 +658,12 @@ class Parser:
             self._consume(Symbol.RPAREN)
             return res
         next_token = self._peek()
-        if isinstance(next_token, SymbolToken) and next_token.symbol == Symbol.RPAREN:
-            raise _InvalidMatch("No parameter", self.origin, self._peek().line)
         if isinstance(next_token, LiteralToken):
             self._advance()
             return Literal(next_token)
         elif isinstance(next_token, IdentifierToken):
             self._advance()
             return Identifier(next_token)
-        elif isinstance(next_token, KeywordToken) and next_token.keyword in [
-            Keyword.TRUE,
-            Keyword.FALSE,
-        ]:
-            self._advance()
-            return Literal(
-                LiteralToken(
-                    line=next_token.line,
-                    column=next_token.column,
-                    value=(True if next_token.keyword == Keyword.TRUE else False),
-                )
-            )
         else:
             raise ParserError(
                 f"Expected expression, found {next_token} instead",

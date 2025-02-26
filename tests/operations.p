@@ -1,0 +1,6 @@
+OUTPUT 0 + 1
+OUTPUT 2 - 1
+OUTPUT 1 * 2 + 1 * 2
+OUTPUT 1 * 2 + 2 * 2 - 1
+OUTPUT 1 / 1
+OUTPUT 3 * 2 / 1.5

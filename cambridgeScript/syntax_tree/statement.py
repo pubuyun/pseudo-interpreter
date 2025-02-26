@@ -113,7 +113,8 @@ class WhileStmt(Statement):
 
 @dataclass
 class VariableDecl(Statement):
-    names: list[IdentifierToken]
+    # names: list[IdentifierToken]
+    name: IdentifierToken
     vartype: Type
 
     def accept(self, visitor: "StatementVisitor") -> Any:

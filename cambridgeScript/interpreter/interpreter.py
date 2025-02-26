@@ -48,7 +48,7 @@ class InterpreterError(Exception):
         self.line = line
 
     def message(self) -> str:
-        return "Unknown error"
+        return self.prompt
 
     def parse_traceback(self) -> str:
         if not hasattr(self, "origin") or not hasattr(self, "line"):
@@ -86,16 +86,18 @@ class InvalidNode(InterpreterError):
 
 
 class PseudoOpError(InterpreterError, TypeError):
-    operror: TypeError
+    op_error: TypeError
     line: int
 
-    def __init__(self, left, right, operror):
+    def __init__(self, left, right, op_error):
         self.left = left
         self.right = right
-        self.operror = operror
+        self.op_error = op_error
 
     def message(self) -> str:
-        return f"Unsupported operation for {self.left} and {self.right}: {self.operror}"
+        return (
+            f"Unsupported operation for {self.left} and {self.right}: {self.op_error}"
+        )
 
 
 class PseudoBuiltinError(InterpreterError, ValueError):
@@ -167,14 +169,8 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
             self.visit(stmt)
 
     def visit_binary_op(self, expr: BinaryOp) -> Value:
-        # Recursively visit left and right operands
         left = self.visit(expr.left)
         right = self.visit(expr.right)
-        # Extract value from LiteralToken if necessary
-        if isinstance(left, LiteralToken):
-            left = left.value
-        if isinstance(right, LiteralToken):
-            right = right.value
         try:
             return expr.operator(left, right)
         except TypeError as e:
@@ -294,40 +290,62 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
             step_value = self.visit(stmt.step)
         else:
             step_value = 1
+        cnt = 0
         while (
             current_value <= end_value if step_value > 0 else current_value >= end_value
         ):
             self.variable_state.variables[name] = (current_value, PrimitiveType.INTEGER)
             self.visit_statements(stmt.body)
             current_value += step_value
+            cnt += 1
+            if cnt > 10000:
+                raise InterpreterError(
+                    "Maximum iteration limit(10000) reached",
+                    self.origin,
+                    stmt.variable.token.line,
+                )
 
     def visit_repeat_until(self, stmt: RepeatUntilStmt) -> None:
         self.visit_statements(stmt.body)
-        expr = self.visit(stmt.condition)
-        while not expr:
+        cnt = 0
+        while True:
             self.visit_statements(stmt.body)
             expr = self.visit(stmt.condition)
+            if expr:
+                break
+            cnt += 1
+            if cnt > 10000:
+                raise InterpreterError(
+                    "Maximum iteration limit(10000) reached",
+                    self.origin,
+                    stmt.condition.token.line,
+                )
 
     def visit_while(self, stmt: WhileStmt) -> None:
-        if stmt.condition.token.value is True:
-            raise RuntimeError("While loop never stops")
         expr = self.visit(stmt.condition)
+        cnt = 0
         while expr:
             self.visit_statements(stmt.body)
             expr = self.visit(stmt.condition)
+            cnt += 1
+            if cnt > 10000:
+                raise InterpreterError(
+                    "Maximum iteration limit(10000) reached",
+                    self.origin,
+                    stmt.condition.token.line,
+                )
 
     def visit_variable_decl(self, stmt: VariableDecl) -> None:
-        for name in stmt.names:
-            if isinstance(stmt.vartype, ArrayType):
-                ranges = [
-                    (self.visit(a), self.visit(b)) for a, b in stmt.vartype.ranges
-                ]
-                self.variable_state.variables[name.value] = (
-                    self.variable_state.create_nd_array(ranges),
-                    stmt.vartype,
-                )
-            else:
-                self.variable_state.variables[name.value] = (None, stmt.vartype)
+        # for name in stmt.names:
+        name = stmt.name
+        if isinstance(stmt.vartype, ArrayType):
+            ranges = [(self.visit(a), self.visit(b)) for a, b in stmt.vartype.ranges]
+            self.variable_state.variables[name.value] = (
+                self.variable_state.create_nd_array(ranges),
+                stmt.vartype,
+            )
+        else:
+            self.variable_state.variables[name.value] = (None, stmt.vartype)
 
     def visit_constant_decl(self, stmt: ConstantDecl) -> None:
         self.variable_state.constants[stmt.name.value] = stmt.value.value
