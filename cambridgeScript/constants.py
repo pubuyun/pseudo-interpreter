@@ -84,10 +84,6 @@ def _unary_sub(n):
     return -n
 
 
-def str_concat(a, b):
-    return str(a) + str(b)
-
-
 class Operator:
     OR = operator.or_
     AND = operator.and_
@@ -103,6 +99,6 @@ class Operator:
     UNARY_SUB = _unary_sub
     MUL = operator.mul
     DIV = operator.truediv
-    CONCAT = str_concat
+    CONCAT = operator.concat
     # DDIV = operator.floordiv
     # MOD = operator.mod

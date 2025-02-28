@@ -2,16 +2,14 @@ import random
 from cambridgeScript.exceptions import PseudoBuiltinError
 
 
-def create_builtins(interpreter):
+def create_builtins():
     def substring(params):
         if len(params) != 3:
             raise PseudoBuiltinError(
                 "SUBSTRING function requires exactly three parameters."
             )
 
-        string_value = interpreter.visit(params[0])
-        start_index = interpreter.visit(params[1])
-        length = interpreter.visit(params[2])
+        string_value, start_index, length = params
 
         if (
             not isinstance(string_value, str)
@@ -37,8 +35,7 @@ def create_builtins(interpreter):
         if len(params) != 2:
             raise PseudoBuiltinError("MOD function requires exactly two parameters.")
 
-        a = interpreter.visit(params[0])
-        b = interpreter.visit(params[1])
+        a, b = params
 
         if not isinstance(a, int) or not isinstance(b, int):
             raise PseudoBuiltinError("MOD function requires integer parameters.")
@@ -49,8 +46,7 @@ def create_builtins(interpreter):
         if len(params) != 2:
             raise PseudoBuiltinError("DIV function requires exactly two parameters.")
 
-        a = interpreter.visit(params[0])
-        b = interpreter.visit(params[1])
+        a, b = params
 
         if not isinstance(a, int) or not isinstance(b, int):
             raise PseudoBuiltinError("DIV function requires integer parameters.")
@@ -61,8 +57,7 @@ def create_builtins(interpreter):
         if len(params) != 2:
             raise PseudoBuiltinError("ROUND function requires exactly two parameters.")
 
-        a = interpreter.visit(params[0])
-        b = interpreter.visit(params[1])
+        a, b = params
 
         if not (isinstance(a, float) or isinstance(a, int)) or not isinstance(b, int):
             raise PseudoBuiltinError("ROUND function requires a number and an integer.")
@@ -73,7 +68,7 @@ def create_builtins(interpreter):
         if len(params) != 1:
             raise PseudoBuiltinError("LENGTH function requires exactly one parameter.")
 
-        a = interpreter.visit(params[0])
+        [a] = params
 
         if not isinstance(a, str):
             raise PseudoBuiltinError("LENGTH function requires a string parameter.")
@@ -84,7 +79,7 @@ def create_builtins(interpreter):
         if len(params) != 1:
             raise PseudoBuiltinError("LCASE function requires exactly one parameter.")
 
-        a = interpreter.visit(params[0])
+        [a] = params
 
         if not isinstance(a, str):
             raise PseudoBuiltinError("LCASE function requires a string parameter.")
@@ -95,7 +90,7 @@ def create_builtins(interpreter):
         if len(params) != 1:
             raise PseudoBuiltinError("UCASE function requires exactly one parameter.")
 
-        a = interpreter.visit(params[0])
+        [a] = params
 
         if not isinstance(a, str):
             raise PseudoBuiltinError("UCASE function requires a string parameter.")

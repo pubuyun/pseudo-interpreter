@@ -51,11 +51,18 @@ import random
 class Interpreter(ExpressionVisitor, StatementVisitor):
     variable_state: VariableState
 
-    def __init__(self, variable_state: VariableState, origin: str, input_stream=None):
+    def __init__(
+        self,
+        variable_state: VariableState,
+        origin: str,
+        input_stream=None,
+        output_stream=None,
+    ):
         self.variable_state = variable_state
         self.origin = origin.splitlines()
-        self.builtins = create_builtins(self)
+        self.builtins = create_builtins()
         self.input_stream = input_stream or __import__("sys").stdin
+        self.output_stream = output_stream or __import__("sys").stdout
 
     def visit(self, thing: Expression | Statement):
         if isinstance(thing, Expression):
@@ -83,7 +90,8 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
         function_name = func_call.function.token.value
         line = func_call.function.token.line
         if function_name in self.builtins:
-            return self.builtins[function_name](func_call.params)
+            evaluated_params = [self.visit(param) for param in func_call.params]
+            return self.builtins[function_name](evaluated_params)
         elif function_name in self.variable_state.functions:
             func = self.variable_state.functions[function_name]
 
@@ -217,7 +225,6 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
                 raise InterpreterError(
                     "Maximum iteration limit(10000) reached",
                     self.origin,
-                    stmt.condition.token.line,
                 )
 
     def visit_while(self, stmt: WhileStmt) -> None:

@@ -28,7 +28,7 @@ def run(file):
     parsed = Parser.parse_program(tokens, code)
 
     # Create interpreter with simple input stream
-    interpreter = Interpreter(VariableState(), code, sys.stdin)
+    interpreter = Interpreter(VariableState(), code, sys.stdin, sys.stdout)
     interpreter.visit(parsed)
 
 

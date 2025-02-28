@@ -59,10 +59,14 @@ from cambridgeScript.exceptions import (
     ParserError,
     UnexpectedToken,
     UnexpectedTokenType,
-    _InvalidMatch,
 )
 
 T = TypeVar("T")
+
+
+class _InvalidMatch(Exception):
+    def __init__(self):
+        pass
 
 
 class Parser:
@@ -253,7 +257,7 @@ class Parser:
         # First item
         try:
             result = [getter()]
-        except (_InvalidMatch, ParserError):
+        except _InvalidMatch:
             return []
         while self._match(delimiter):
             result.append(getter())
@@ -577,7 +581,10 @@ class Parser:
             else:
                 end_type = Symbol.RBRAKET
                 ast_class = ArrayIndex
-            arg_list = self._match_multiple(self._expression)
+            if self._check(end_type):
+                arg_list = []
+            else:
+                arg_list = self._match_multiple(self._expression)
             self._consume(end_type)
             left = ast_class(left, arg_list)
         return left
