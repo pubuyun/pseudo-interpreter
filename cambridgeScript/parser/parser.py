@@ -396,8 +396,18 @@ class Parser:
             step_value = None
 
         body = self._statements_until(Keyword.NEXT)
-        if isinstance(self._peek(), IdentifierToken):
+        if (
+            isinstance(self._peek(), IdentifierToken)
+            and self._peek().value == identifier.token.value
+        ):
             self._advance()
+        else:
+            raise UnexpectedToken(
+                f"{identifier.token.value}",
+                self._peek(),
+                self.origin,
+                self._peek().line,
+            )
 
         return ForStmt(identifier, start_value, end_value, step_value, body)
 

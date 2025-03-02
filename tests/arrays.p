@@ -6,7 +6,7 @@ FOR i <- 1 TO 10
     arrTwo[i - 1] <- arr[i]
 NEXT i
 
-
+!
 FOR i <- 0 TO 9
     OUTPUT arr[i + 1]
     OUTPUT arrTwo[i]

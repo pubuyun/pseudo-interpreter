@@ -1,7 +1,7 @@
 FOR I <- 1 TO 5
     FOR J <- 1 TO I
         OUTPUT I , ", " , J
-    NEXT
+    NEXT J
 NEXT I
 
 DECLARE Counter : INTEGER
@@ -16,9 +16,4 @@ WHILE Counter <= 3 DO
         UNTIL AnotherCounter > 3
     NEXT i
     Counter <- Counter + 1
-ENDWHILE
-
-
-WHILE TRUE DO
-    OUTPUT "This loop will run infinitely"   
 ENDWHILE

@@ -60,11 +60,10 @@ class UnexpectedToken(ParserError):
         self.origin = origin
         self.line = line
 
-    def __str__(self):
+    def message(self):
         return (
             f"Expected '{self.expected}' at {self.actual.location}, "
-            f"found '{self.actual}' instead\n"
-            f"{self.parse_traceback(self.origin, self.line)}"
+            f"found '{self.actual.value}' instead"
         )
 
 
@@ -80,11 +79,10 @@ class UnexpectedTokenType(ParserError):
         self.origin = origin
         self.line = line
 
-    def __str__(self):
+    def message(self):
         return (
             f"Expected {self.expected_type.__name__.lower()} at {self.actual.location}, "
-            f"found '{self.actual}' instead\n"
-            f"{self.parse_traceback(self.origin, self.line)}"
+            f"found '{self.actual.__class__.__name__}' instead\n"
         )
 
 
