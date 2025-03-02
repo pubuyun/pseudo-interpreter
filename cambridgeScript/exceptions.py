@@ -43,11 +43,6 @@ class ParserError(PseudoError):
     """Base exception class for errors from the parser"""
 
 
-class _InvalidMatch(ParserError):
-    def __init__(self):
-        pass
-
-
 class UnexpectedToken(ParserError):
     """Raised when the parser encounters an unexpected token"""
 
@@ -166,4 +161,3 @@ class PseudoSubroutineError(InterpreterError, RuntimeError):
 class ReturnException(Exception):
     def __init__(self, value):
         self.value = value
-        super().__init__(value)
