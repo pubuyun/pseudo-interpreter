@@ -228,11 +228,9 @@ class Interpreter(ExpressionVisitor, StatementVisitor):
                 )
 
     def visit_while(self, stmt: WhileStmt) -> None:
-        expr = self.visit(stmt.condition)
         cnt = 0
-        while expr:
+        while self.visit(stmt.condition):
             self.visit_statements(stmt.body)
-            expr = self.visit(stmt.condition)
             cnt += 1
             if cnt > 10000:
                 raise InterpreterError(
